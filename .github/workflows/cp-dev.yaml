@@ -1,0 +1,100 @@
+name: CP DEV
+
+on:
+  workflow_dispatch:
+  workflow_run:
+    workflows: ["Code checks"]
+    types: [completed]
+    branches: [main]
+
+jobs:
+  prepare:
+    name: Prepare
+    runs-on:
+      group: Ubuntu-Runners
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Configure AWS credentials.
+        id: creds
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_DEV_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_DEV_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
+        
+      - name: Get secrets to config
+        id: secretspull
+        run: |
+            aws secretsmanager get-secret-value --secret-id ${{ secrets.AWS_DEV_SECRETS }} --region ${{ secrets.AWS_DEFAULT_REGION }} \
+            --query 'SecretString' --output text | sed -e 's/[{}]/''/g' |tr ',' '\n'|sed 's/:/=/1'|sed 's/"//1; s/"//1' > .env
+       
+  docker-build:
+    name: Build
+    needs: [prepare]
+    runs-on:
+      group: Ubuntu-Runners
+    steps:
+      - name: Configure AWS credentials
+        id: creds
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+            aws-access-key-id: ${{ secrets.AWS_DEV_ACCESS_KEY_ID }}
+            aws-secret-access-key: ${{ secrets.AWS_DEV_SECRET_ACCESS_KEY }}
+            aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
+
+      - name: Login to ECR
+        id: dockerlogin
+        run: | 
+            aws ecr get-login-password --region ${{ secrets.AWS_DEFAULT_REGION }} | docker login --username AWS --password-stdin \
+            ${{ secrets.DEV_ECR_REGISTRY }}/${{ secrets.DEV_ECR_REPOSITORY }}
+
+      - name: Build Docker Image
+        id: dockerbuild
+        run: docker build -t automationcp:latest .
+
+      - name: Tag Docker Image
+        id: dockertag
+        run: docker tag automationcp:latest "${{ secrets.DEV_ECR_REGISTRY }}/${{ secrets.DEV_ECR_REPOSITORY }}:latest"
+
+      - name: Upload Docker to ECR
+        id: dockerupload
+        run: docker push "${{ secrets.DEV_ECR_REGISTRY }}/${{ secrets.DEV_ECR_REPOSITORY }}:latest"
+     
+      - name: Remove secrets file
+        id: secretsremove
+        run: rm .env
+
+  deploy-aws-infra:
+    name: Infrastructure
+    needs: [prepare, docker-build]
+    runs-on:
+      group: Ubuntu-Runners
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      
+      - name: Configure AWS credentials.
+        id: creds
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+            aws-access-key-id: ${{ secrets.AWS_DEV_ACCESS_KEY_ID }}
+            aws-secret-access-key: ${{ secrets.AWS_DEV_SECRET_ACCESS_KEY }}
+            aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
+
+      - name: Deploy ECR
+        uses: aws-actions/aws-cloudformation-github-deploy@v1
+        with:
+            name: avx-dev-cp-automation-ecr
+            no-fail-on-empty-changeset: "1"
+            template: cloudformation/ecr-setup/avx-ENV-PROJECTNAME-ecr.yaml
+            parameter-overrides: Env=dev,ProjectName=cp-automation
+      
+      - name: Deploy Secrets Manager
+        uses: aws-actions/aws-cloudformation-github-deploy@v1
+        with:
+            name: avx-dev-cp-automation-secrets
+            no-fail-on-empty-changeset: "1"
+            template: cloudformation/secrets-setup/avx-ENV-PROJECTNAME-secret.yaml
+            parameter-overrides: Env=dev,ProjectName=cp-automation

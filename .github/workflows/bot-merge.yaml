@@ -1,0 +1,57 @@
+name: Dependabot
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches:
+      - gh-bot
+
+jobs:
+  dependabot:
+    name: Dependabot
+    permissions: write-all
+    runs-on:
+      group: Ubuntu-Runners
+    if: ${{ github.actor == 'dependabot[bot]'}}
+    steps:
+      - name: Approve a PR
+        run: gh pr review --approve "$PR_URL"
+        env:
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Enable auto-merge for Dependabot PRs
+        run: gh pr merge --auto --merge "$PR_URL"
+        env:
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  build:
+    name: Build
+    runs-on:
+      group: Ubuntu-Runners
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Configure AWS credentials.
+        id: creds
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+            aws-access-key-id: ${{ secrets.AWS_DEV_ACCESS_KEY_ID }}
+            aws-secret-access-key: ${{ secrets.AWS_DEV_SECRET_ACCESS_KEY }}
+            aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
+        
+      - name: Get secrets to config
+        id: secretspull
+        run: |
+            aws secretsmanager get-secret-value --secret-id ${{ secrets.AWS_DEV_SECRETS }} --region ${{ secrets.AWS_DEFAULT_REGION }} \
+            --query 'SecretString' --output text | sed -e 's/[{}]/''/g' |tr ',' '\n'|sed 's/:/=/1'|sed 's/"//1; s/"//1' > .env
+      
+      - name: Build Docker Image
+        id: dockerbuild
+        run: docker build -t automationcp:test .
+      
+      - name: Remove secrets file
+        id: secretsremove
+        run: rm .env

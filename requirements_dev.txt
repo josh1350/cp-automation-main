@@ -1,0 +1,20 @@
+# code formatters libs
+black===23.7.0
+isort==5.12.0
+flake8==6.1.0
+Flake8-pyproject==1.2.3
+flake8-django===1.4
+flake8-isort==6.0.0
+flake8-eradicate===1.5.0
+flake8-functions===0.0.8
+flake8-expression-complexity===0.0.11
+flake8-print===5.0.0
+flake8-debugger===4.1.2
+flake8-unused-arguments===0.0.13
+flake8-variables-names===0.0.6
+flake8-functions-names===0.4.0
+pep8-naming===0.13.3
+
+# testing libs
+pytest-mock==3.11.1
+parameterized==0.9.0

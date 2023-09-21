@@ -1,0 +1,14 @@
+webdriver-manager>=3.8.6
+selenium==4.10.0
+python-dotenv>=1.0.0
+requests>=2.31.0
+logger>=1.4
+behave>=1.2.6
+allure-behave>=2.13.2
+jsonpath-ng>=1.5.3
+parse>=1.19.1
+jmespath~=1.0.1
+setuptools>=68.1.2
+phonenumbers==8.13.19
+number_parser>=0.3.2
+pre-commit>=3.4.0

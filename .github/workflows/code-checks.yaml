@@ -1,0 +1,57 @@
+name: Code checks
+
+on:
+  push:
+    branches:
+      - '**'
+
+jobs:
+  black:
+    runs-on:
+      group: Ubuntu-Runners
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Set up Python version
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+      
+      - name: Install requirements
+        run: |
+          python -m venv venv
+          source ./venv/bin/activate
+          pip install -r requirements_dev.txt
+      
+      - name: Run Black code check
+        run: |
+          source ./venv/bin/activate
+          black src/ --diff --check
+          black features/ --diff --check
+        shell: bash
+  
+  lint:
+    runs-on:
+      group: Ubuntu-Runners
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      
+      - name: Set up Python version
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+      
+      - name: Install requirements
+        run: |
+          python -m venv venv
+          source ./venv/bin/activate
+          pip install -r requirements_dev.txt
+      
+      - name: Run Flake8 code analysis
+        run: |
+          source ./venv/bin/activate
+          flake8 src/ --statistics --count
+          flake8 features/ --statistics --count
+        shell: bash
