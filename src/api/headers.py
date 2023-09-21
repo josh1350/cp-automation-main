@@ -1,10 +1,12 @@
 import base64
 
-
+applicationJson: str = "application/json"
 class Headers:
+
+
     @staticmethod
     def get_json_format():
-        return {"Accept": "application/json", "Content-Type": "application/json"}
+        return {"Accept": applicationJson, "Content-Type": applicationJson}
 
     @staticmethod
     def get_text_format():
@@ -35,7 +37,7 @@ class Headers:
     @staticmethod
     def get_okta_headers(api_key):
         headers = {
-            "Content-Type": "application/json",
+            "Content-Type": applicationJson,
             "Authorization": f"SSWS {api_key}",
         }
         return headers
